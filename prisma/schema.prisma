@@ -1,0 +1,154 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  username  String   @unique
+  bio       String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts     Post[]
+  comments  Comment[]  
+  likes     Like[]
+  followers Follow[] @relation("Follower")
+  following Follow[] @relation("Following")
+  
+  sentNotifications     Notification[] @relation("SentNotifications")
+  receivedNotifications Notification[] @relation("ReceivedNotifications")
+  conversations         Conversation[] @relation("ConversationParticipants")
+  messages              Message[]
+  settings              UserSettings?
+
+  @@map("users")
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  caption   String
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  likes     Like[]
+  comments  Comment[]    
+  notifications Notification[]  
+
+  @@map("posts")
+}
+
+model Like {
+  id     String @id @default(cuid())
+  userId String
+  postId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("likes")
+}
+
+model Follow {
+  id          String @id @default(cuid())
+  followerId  String
+  followingId String
+  follower    User   @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User   @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  authorId  String
+  postId    String
+  
+  author    User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post      Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  notifications Notification[]  
+  
+  @@map("comments")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // 'like', 'comment', 'follow'
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  senderId   String
+  receiverId String
+  postId     String?
+  commentId  String?
+  
+  sender     User     @relation("SentNotifications", fields: [senderId], references: [id])
+  receiver   User     @relation("ReceivedNotifications", fields: [receiverId], references: [id])
+  post       Post?    @relation(fields: [postId], references: [id])
+  comment    Comment? @relation(fields: [commentId], references: [id])
+  
+  @@map("notifications")
+}
+
+model UserSettings {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  isPrivate Boolean  @default(false)
+  allowMessages String @default("everyone") // 'everyone', 'followers', 'none'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_settings")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  participants User[]    @relation("ConversationParticipants")
+  messages     Message[]
+  
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  content        String
+  createdAt      DateTime @default(now())
+  conversationId String
+  senderId       String
+  
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  
+  @@map("messages")
+}
