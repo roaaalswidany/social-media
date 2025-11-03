@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 
 export interface User {
@@ -46,14 +47,14 @@ export const registerUser = createAsyncThunk(
       const data = await response.json()
 
       if (!response.ok) {
-        return rejectWithValue(data.error)
+        return rejectWithValue(data.error || 'Registration failed')
       }
 
       localStorage.setItem('token', data.token)
+      localStorage.setItem('userId', data.user.id)
       return data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      return rejectWithValue(error.message)
+      return rejectWithValue(error.message || 'Network error occurred')
     }
   }
 )
@@ -73,14 +74,14 @@ export const loginUser = createAsyncThunk(
       const data = await response.json()
 
       if (!response.ok) {
-        return rejectWithValue(data.error)
+        return rejectWithValue(data.error || 'Login failed')
       }
 
       localStorage.setItem('token', data.token)
+      localStorage.setItem('userId', data.user.id)
       return data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      return rejectWithValue(error.message)
+      return rejectWithValue(error.message || 'Network error occurred')
     }
   }
 )
@@ -96,7 +97,7 @@ export const getCurrentUser = createAsyncThunk(
 
       const response = await fetch('/api/auth/me', {
         headers: {
-          Authorization: `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
         },
       })
 
@@ -104,14 +105,15 @@ export const getCurrentUser = createAsyncThunk(
 
       if (!response.ok) {
         localStorage.removeItem('token')
-        return rejectWithValue(data.error)
+        localStorage.removeItem('userId')
+        return rejectWithValue(data.error || 'Failed to fetch user data')
       }
 
       return data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       localStorage.removeItem('token')
-      return rejectWithValue(error.message)
+      localStorage.removeItem('userId')
+      return rejectWithValue(error.message || 'Network error occurred')
     }
   }
 )
@@ -126,6 +128,7 @@ const authSlice = createSlice({
       state.isAuthenticated = false
       state.error = null
       localStorage.removeItem('token')
+      localStorage.removeItem('userId')
     },
     clearError: (state) => {
       state.error = null
@@ -135,15 +138,21 @@ const authSlice = createSlice({
         state.user = { ...state.user, ...action.payload }
       }
     },
+    setToken: (state, action: PayloadAction<string>) => {
+      state.token = action.payload
+      state.isAuthenticated = true
+    },
   },
   extraReducers: (builder) => {
     builder
+      // Register User
       .addCase(registerUser.pending, (state) => {
         state.isLoading = true
         state.error = null
       })
       .addCase(registerUser.fulfilled, (state, action) => {
-        state.isLoading = false
+
+      state.isLoading = false
         state.isAuthenticated = true
         state.user = action.payload.user
         state.token = action.payload.token
@@ -152,14 +161,14 @@ const authSlice = createSlice({
         state.isLoading = false
         state.error = action.payload as string
       })
+      // Login User
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true
         state.error = null
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.isLoading = false
-
-state.isAuthenticated = true
+        state.isAuthenticated = true
         state.user = action.payload.user
         state.token = action.payload.token
       })
@@ -167,6 +176,7 @@ state.isAuthenticated = true
         state.isLoading = false
         state.error = action.payload as string
       })
+      // Get Current User
       .addCase(getCurrentUser.pending, (state) => {
         state.isLoading = true
       })
@@ -185,5 +195,5 @@ state.isAuthenticated = true
   },
 })
 
-export const { logout, clearError, updateUser } = authSlice.actions
+export const { logout, clearError, updateUser, setToken } = authSlice.actions
 export default authSlice.reducer

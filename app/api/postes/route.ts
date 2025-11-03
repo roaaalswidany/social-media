@@ -22,10 +22,15 @@ export async function GET(request: NextRequest) {
             avatar: true
           }
         },
-        likes: true,
+        likes: {
+          select: {
+            userId: true
+          }
+        },
         _count: {
           select: {
-            likes: true
+            likes: true,
+            comments: true
           }
         }
       },
@@ -37,7 +42,32 @@ export async function GET(request: NextRequest) {
     const totalPosts = await prisma.post.count()
     const hasMore = skip + posts.length < totalPosts
 
-    return NextResponse.json({ posts, hasMore })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formattedPosts = posts.map((post: { likes: any[] }) => ({
+      ...post,
+      isLiked: post.likes.some(like => {
+        const token = request.headers.get('authorization')?.replace('Bearer ', '')
+        if (!token) return false
+        try {
+          const payload = AuthService.verifyToken(token)
+          return like.userId === payload.userId
+        } catch {
+          return false
+        }
+      }),
+      likes: undefined
+    }))
+
+    return NextResponse.json({ 
+      message: 'Posts retrieved successfully',
+      posts: formattedPosts,
+      pagination: {
+        page,
+        limit,
+        total: totalPosts,
+        hasMore
+      }
+    })
   } catch (error) {
     console.error('Get posts error:', error)
     return NextResponse.json(
@@ -51,7 +81,10 @@ export async function POST(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized - Token required' },
+        { status: 401 }
+      )
     }
 
     const payload = AuthService.verifyToken(token)
@@ -60,22 +93,22 @@ export async function POST(request: NextRequest) {
     const caption = formData.get('caption') as string
     const image = formData.get('image') as File | null
 
-    if (!caption) {
+    if (!caption || caption.trim() === '') {
       return NextResponse.json(
         { error: 'Caption is required' },
         { status: 400 }
       )
     }
 
-    let imageUrl: string | undefined
+    let imageUrl: string | null = null
 
-    if (image) {
+    if (image && image.size > 0) {
       imageUrl = await UploadService.uploadImage(image, payload.userId)
     }
 
     const post = await prisma.post.create({
       data: {
-        caption,
+        caption: caption.trim(),
         image: imageUrl,
         authorId: payload.userId
       },
@@ -88,16 +121,19 @@ export async function POST(request: NextRequest) {
             avatar: true
           }
         },
-        likes: true,
         _count: {
           select: {
-            likes: true
+            likes: true,
+            comments: true
           }
         }
       }
     })
 
-    return NextResponse.json({ post }, { status: 201 })
+    return NextResponse.json({ 
+      message: 'Post created successfully',
+      post 
+    }, { status: 201 })
   } catch (error) {
     console.error('Create post error:', error)
     return NextResponse.json(

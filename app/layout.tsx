@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'SocialMedia App',
-  description: 'A modern social media platform built with Next.js and Redux',
+  description: 'A modern social media platform built with Next.js',
 }
 
 export default function RootLayout({

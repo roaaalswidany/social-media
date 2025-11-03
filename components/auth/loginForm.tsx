@@ -16,6 +16,11 @@ export function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!email || !password) {
+      dispatch(clearError())
+      return
+    }
     
     try {
       await dispatch(loginUser({ email, password })).unwrap()
@@ -70,7 +75,7 @@ export function LoginForm() {
 
       <div className="text-center">
         <span className="text-sm text-gray-600">
-          Don't have an account?
+          Don not have an account?
           <Link href="/register" className="font-medium text-primary-600 hover:text-primary-500">
             Sign up
           </Link>

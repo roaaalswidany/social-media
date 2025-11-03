@@ -20,8 +20,8 @@ export function PostCard({ post }: PostCardProps) {
   const { user } = useAppSelector((state) => state.auth)
   const [isLiking, setIsLiking] = useState(false)
 
-  const isLiked = post.likes.some((like) => like.userId === user?.id)
-  const likeCount = post._count.likes
+  const isLiked = post.likes?.some((like) => like.userId === user?.id) || false
+  const likeCount = post._count?.likes || 0
 
   const handleLike = async () => {
     if (!user) return
@@ -34,7 +34,7 @@ export function PostCard({ post }: PostCardProps) {
         await dispatch(likePost(post.id)).unwrap()
       }
     } catch (error) {
-      console.error('Error toggling like:', error)
+      console.error('Error liking post:', error)
     } finally {
       setIsLiking(false)
     }
@@ -50,7 +50,7 @@ export function PostCard({ post }: PostCardProps) {
           <div>
             <Link 
               href={`/profile/${post.author.id}`}
-              className="font-semibold text-gray-900 hover:text-primary-600 transition-colors"
+              className="font-semibold text-gray-900 hover:text-primary-600 transition-colors block"
             >
               {post.author.name}
             </Link>
@@ -67,7 +67,9 @@ export function PostCard({ post }: PostCardProps) {
         </div>
       </div>
 
-      <p className="text-gray-800 mb-4 whitespace-pre-wrap">{post.caption}</p>
+      <p className="text-gray-800 mb-4 whitespace-pre-wrap">
+        {post.caption}
+      </p>
 
       {post.image && (
         <div className="relative aspect-square mb-4 rounded-lg overflow-hidden bg-gray-100">
@@ -99,9 +101,8 @@ export function PostCard({ post }: PostCardProps) {
             variant="ghost"
             size="sm"
             className="flex items-center space-x-2 text-gray-500 hover:text-gray-700"
-            asChild
           >
-            <Link href={`/posts/${post.id}`}>
+            <Link href={`/posts/${post.id}`} className="flex items-center space-x-2">
               <MessageCircle className="w-5 h-5" />
               <span>Comment</span>
             </Link>

@@ -39,6 +39,12 @@ export function RegisterForm() {
       return
     }
 
+    if (formData.password.length < 6) {
+      dispatch(clearError())
+      alert("The password must be at least 6 characters or number long")
+      return
+    }
+
     try {
       await dispatch(registerUser({
         name: formData.name,
@@ -50,6 +56,9 @@ export function RegisterForm() {
       console.error('Registration failed:', error)
     }
   }
+
+
+  const isFormValid = formData.name && formData.username && formData.email && formData.password && formData.confirmPassword
 
   return (
     <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -98,6 +107,7 @@ export function RegisterForm() {
           onChange={handleChange}
           required
           placeholder="Create a password"
+          minLength={6}
         />
 
         <Input
@@ -108,16 +118,17 @@ export function RegisterForm() {
           onChange={handleChange}
           required
           placeholder="Confirm your password"
+          minLength={6}
         />
       </div>
 
-      <Button type="submit" className="w-full" loading={isLoading}>
+      <Button type="submit" className="w-full" loading={isLoading} disabled = {!isFormValid}>
         Create Account
       </Button>
 
       <div className="text-center">
         <span className="text-sm text-gray-600">
-          Already have an account?{' '}
+          Already have an account?
           <Link href="/login" className="font-medium text-primary-600 hover:text-primary-500">
             Sign in
           </Link>

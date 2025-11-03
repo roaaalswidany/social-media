@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: email.toLowerCase() }
     })
 
     if (!user) {
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
     const { password: _, ...userWithoutPassword } = user
 
     return NextResponse.json({
+      message: 'Login successful',
       user: userWithoutPassword,
       token
     })

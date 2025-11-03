@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/src/lib/prisma'
-import { AuthService } from '@/src/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { AuthService } from '@/lib/auth'
 
 interface Context {
   params: {
@@ -14,7 +14,10 @@ export async function POST(request: NextRequest, context: Context) {
     
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized - Token required' },
+        { status: 401 }
+      )
     }
 
     const payload = AuthService.verifyToken(token)
@@ -25,7 +28,10 @@ export async function POST(request: NextRequest, context: Context) {
     })
 
     if (!post) {
-      return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Post not found' },
+        { status: 404 }
+      )
     }
 
     const existingLike = await prisma.like.findUnique({
@@ -38,17 +44,37 @@ export async function POST(request: NextRequest, context: Context) {
     })
 
     if (existingLike) {
-      return NextResponse.json({ error: 'Post already liked' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Post already liked' },
+        { status: 400 }
+      )
     }
 
     const like = await prisma.like.create({
       data: {
         userId,
         postId
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            username: true
+          }
+        }
       }
     })
 
-    return NextResponse.json({ message: 'Post liked successfully', like }, { status: 201 })
+    const likesCount = await prisma.like.count({
+      where: { postId }
+    })
+
+    return NextResponse.json({ 
+      message: 'Post liked successfully',
+      like,
+      likesCount 
+    }, { status: 201 })
   } catch (error) {
     console.error('Like post error:', error)
     return NextResponse.json(
@@ -64,11 +90,30 @@ export async function DELETE(request: NextRequest, context: Context) {
     
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized - Token required' },
+        { status: 401 }
+      )
     }
 
     const payload = AuthService.verifyToken(token)
     const userId = payload.userId
+
+    const existingLike = await prisma.like.findUnique({
+      where: {
+        userId_postId: {
+          userId,
+          postId
+        }
+      }
+    })
+
+    if (!existingLike) {
+      return NextResponse.json(
+        { error: 'Post not liked' },
+        { status: 400 }
+      )
+    }
 
     await prisma.like.delete({
       where: {
@@ -79,7 +124,14 @@ export async function DELETE(request: NextRequest, context: Context) {
       }
     })
 
-    return NextResponse.json({ message: 'Post unliked successfully' })
+    const likesCount = await prisma.like.count({
+      where: { postId }
+    })
+
+    return NextResponse.json({ 
+      message: 'Post unliked successfully',
+      likesCount 
+    })
   } catch (error) {
     console.error('Unlike post error:', error)
     return NextResponse.json(

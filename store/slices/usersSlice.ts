@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 
 interface User {
@@ -33,6 +32,14 @@ const initialState: UsersState = {
 }
 
 
+const getCountWithDefaults = (_count?: { followers: number; following: number; posts: number }) => {
+  return {
+    followers: _count?.followers || 0,
+    following: _count?.following || 0,
+    posts: _count?.posts || 0
+  }
+}
+
 export const followUser = createAsyncThunk(
   'users/followUser',
   async (userId: string, { rejectWithValue }) => {
@@ -58,7 +65,6 @@ export const followUser = createAsyncThunk(
   }
 )
 
-
 export const unfollowUser = createAsyncThunk(
   'users/unfollowUser',
   async (userId: string, { rejectWithValue }) => {
@@ -82,7 +88,6 @@ export const unfollowUser = createAsyncThunk(
     }
   }
 )
-
 
 export const fetchUser = createAsyncThunk(
   'users/fetchUser',
@@ -121,18 +126,19 @@ const usersSlice = createSlice({
         const user = state.users.find(u => u.id === userId)
         if (user) {
           user.isFollowing = true
+          const currentCount = getCountWithDefaults(user._count)
           user._count = {
-            ...user._count,
-            followers: (user._count?.followers || 0) + 1
+            ...currentCount,
+            followers: currentCount.followers + 1
           }
         }
         
-        
         if (state.currentUser?.id === userId) {
           state.currentUser.isFollowing = true
+          const currentCount = getCountWithDefaults(state.currentUser._count)
           state.currentUser._count = {
-            ...state.currentUser._count,
-            followers: (state.currentUser._count?.followers || 0) + 1
+            ...currentCount,
+            followers: currentCount.followers + 1
           }
         }
       })
@@ -143,18 +149,21 @@ const usersSlice = createSlice({
         const user = state.users.find(u => u.id === userId)
         if (user) {
           user.isFollowing = false
-          user._count = {
-            ...user._count,
-            followers: Math.max(0, (user._count?.followers || 1) - 1)
+          const currentCount = getCountWithDefaults(user._count)
+
+
+        user._count = {
+            ...currentCount,
+            followers: Math.max(0, currentCount.followers - 1)
           }
         }
         
         if (state.currentUser?.id === userId) {
           state.currentUser.isFollowing = false
-
-state.currentUser._count = {
-            ...state.currentUser._count,
-            followers: Math.max(0, (state.currentUser._count?.followers || 1) - 1)
+          const currentCount = getCountWithDefaults(state.currentUser._count)
+          state.currentUser._count = {
+            ...currentCount,
+            followers: Math.max(0, currentCount.followers - 1)
           }
         }
       })

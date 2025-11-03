@@ -15,14 +15,17 @@ export async function POST(request: NextRequest) {
 
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ email }, { username }]
+        OR: [
+          { email: email.toLowerCase() },
+          { username: username.toLowerCase() }
+        ]
       }
     })
 
     if (existingUser) {
       return NextResponse.json(
         { error: 'User already exists' },
-        { status: 400 }
+        { status: 409 }
       )
     }
 
@@ -30,10 +33,12 @@ export async function POST(request: NextRequest) {
     
     const user = await prisma.user.create({
       data: {
-        email,
+        email: email.toLowerCase(),
         password: hashedPassword,
         name,
-        username
+        username: username.toLowerCase(),
+        bio: '',
+        avatar: null
       },
       select: {
         id: true,
@@ -49,6 +54,7 @@ export async function POST(request: NextRequest) {
     const token = AuthService.generateToken({ userId: user.id })
 
     return NextResponse.json({
+      message: 'Account created successfully',
       user,
       token
     }, { status: 201 })

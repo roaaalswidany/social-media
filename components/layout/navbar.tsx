@@ -36,7 +36,7 @@ export function Navbar() {
               <span className="text-white font-bold text-sm">S</span>
             </div>
             <span className="text-xl font-bold text-gray-900 hidden sm:block">
-              SocialApp
+              Social-Media
             </span>
           </Link>
 
@@ -94,7 +94,7 @@ export function Navbar() {
                 >
                   {isMobileMenuOpen ? (
 
-<X className="w-5 h-5" />
+                  <X className="w-5 h-5" />
                   ) : (
                     <Menu className="w-5 h-5" />
                   )}

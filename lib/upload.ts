@@ -1,26 +1,44 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { writeFile } from 'fs/promises'
-import { join } from 'path'
+import fs from 'fs'
+import path from 'path'
 
 export class UploadService {
+  private static uploadDir = path.join(process.cwd(), 'public', 'uploads')
+  private static allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  private static maxFileSize = 5 * 1024 * 1024 // 5MB
+
   static async uploadImage(file: File, userId: string): Promise<string> {
+    if (!this.allowedMimeTypes.includes(file.type)) {
+      throw new Error('File type not supported. Please use JPEG, PNG, GIF, or WebP')
+    }
+
+    if (file.size > this.maxFileSize) {
+      throw new Error('File size too large. Maximum 5MB')
+    }
+
+    if (!fs.existsSync(this.uploadDir)) {
+      fs.mkdirSync(this.uploadDir, { recursive: true })
+    }
+
+    const fileExtension = path.extname(file.name)
+    const fileName = `${userId}-${Date.now()}${fileExtension}`
+    const filePath = path.join(this.uploadDir, fileName)
+
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+
+    await fs.promises.writeFile(filePath, buffer)
+
+    return `/uploads/${fileName}`
+  }
+
+  static async deleteImage(imagePath: string): Promise<void> {
     try {
-      const bytes = await file.arrayBuffer()
-      const buffer = Buffer.from(bytes)
-      
-      const timestamp = Date.now()
-      const extension = file.name.split('.').pop()
-      const filename = `post-${userId}-${timestamp}.${extension}`
-      
-      const uploadDir = join(process.cwd(), 'public/uploads')
-      const filepath = join(uploadDir, filename)
-      
-      await writeFile(filepath, buffer)
-      
-      return `/uploads/${filename}`
-      
+      const fullPath = path.join(process.cwd(), 'public', imagePath)
+      if (fs.existsSync(fullPath)) {
+        await fs.promises.unlink(fullPath)
+      }
     } catch (error) {
-      throw new Error('Failed to upload image')
+      console.error('Error deleting image:', error)
     }
   }
 }

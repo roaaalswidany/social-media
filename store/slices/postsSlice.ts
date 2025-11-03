@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 
+
+interface CreatePostPayload{
+  caption: string
+  image: File | null
+}
 export interface Post {
   id: string
   caption: string
@@ -19,7 +24,9 @@ export interface Post {
   }>
   _count: {
     likes: number
+    comments: number
   }
+  isLiked?: boolean
 }
 
 interface PostsState {
@@ -48,7 +55,7 @@ export const fetchPosts = createAsyncThunk(
       const data = await response.json()
 
       if (!response.ok) {
-        return rejectWithValue(data.error)
+        return rejectWithValue(data.error || 'Failed to fetch posts')
       }
 
       return {
@@ -57,7 +64,7 @@ export const fetchPosts = createAsyncThunk(
         page
       }
     } catch (error: any) {
-      return rejectWithValue(error.message)
+      return rejectWithValue(error.message || 'Network error occurred')
     }
   }
 )
@@ -67,6 +74,10 @@ export const fetchFeed = createAsyncThunk(
   async (page: number = 1, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token')
+      if (!token) {
+        return rejectWithValue('Token not found')
+      }
+
       const response = await fetch(`/api/posts/feed?page=${page}&limit=10`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -76,7 +87,7 @@ export const fetchFeed = createAsyncThunk(
       const data = await response.json()
 
       if (!response.ok) {
-        return rejectWithValue(data.error)
+        return rejectWithValue(data.error || 'Failed to fetch feed')
       }
 
       return {
@@ -85,16 +96,20 @@ export const fetchFeed = createAsyncThunk(
         page
       }
     } catch (error: any) {
-      return rejectWithValue(error.message)
+      return rejectWithValue(error.message || 'Network error occurred')
     }
   }
 )
 
 export const createPost = createAsyncThunk(
   'posts/createPost',
-  async (postData: { caption: string; image?: File }, { rejectWithValue }) => {
+  async (postData: CreatePostPayload, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token')
+      if (!token) {
+        return rejectWithValue('Token not found')
+      }
+
       const formData = new FormData()
       formData.append('caption', postData.caption)
       
@@ -113,12 +128,12 @@ export const createPost = createAsyncThunk(
       const data = await response.json()
 
       if (!response.ok) {
-        return rejectWithValue(data.error)
+        return rejectWithValue(data.error || 'Failed to create post')
       }
 
       return data.post
     } catch (error: any) {
-      return rejectWithValue(error.message)
+      return rejectWithValue(error.message || 'Network error occurred')
     }
   }
 )
@@ -128,22 +143,26 @@ export const likePost = createAsyncThunk(
   async (postId: string, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/posts/${postId}/like`, {
+      if (!token) {
+        return rejectWithValue('Token not found')
+      }
+
+      const response = await fetch( `/api/posts/${postId}/like`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token} `,
         },
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        return rejectWithValue(data.error)
+        return rejectWithValue(data.error || 'Failed to like post')
       }
 
-      return { postId, like: data.like }
+      return { postId, like: data.like, likesCount: data.likesCount }
     } catch (error: any) {
-      return rejectWithValue(error.message)
+      return rejectWithValue(error.message || 'Network error occurred')
     }
   }
 )
@@ -153,21 +172,27 @@ export const unlikePost = createAsyncThunk(
   async (postId: string, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/posts/${postId}/like`, {
+      if (!token) {
+        return rejectWithValue('Token not found')
+      }
+
+
+const response = await fetch(`/api/posts/${postId}/like`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const data = await response.json()
-        return rejectWithValue(data.error)
+        return rejectWithValue(data.error || 'Failed to unlike post')
       }
 
-      return { postId }
+      return { postId, likesCount: data.likesCount }
     } catch (error: any) {
-      return rejectWithValue(error.message)
+      return rejectWithValue(error.message || 'Network error occurred')
     }
   }
 )
@@ -204,6 +229,7 @@ const postsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // fetchPosts
       .addCase(fetchPosts.pending, (state) => {
         state.isLoading = true
         state.error = null
@@ -222,23 +248,48 @@ const postsSlice = createSlice({
         state.isLoading = false
         state.error = action.payload as string
       })
+      // fetchFeed
+      .addCase(fetchFeed.pending, (state) => {
+        state.isLoading = true
+        state.error = null
+      })
+      .addCase(fetchFeed.fulfilled, (state, action) => {
+        state.isLoading = false
+        if (action.payload.page === 1) {
+          state.posts = action.payload.posts
+        } else {
+          state.posts = [...state.posts, ...action.payload.posts]
+        }
+        state.hasMore = action.payload.hasMore
+        state.page = action.payload.page
+      })
+      .addCase(fetchFeed.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload as string
+      })
+      // createPost
       .addCase(createPost.fulfilled, (state, action) => {
         state.posts.unshift(action.payload)
       })
+      // likePost
       .addCase(likePost.fulfilled, (state, action) => {
-        const { postId, like } = action.payload
+        const { postId, like, likesCount } = action.payload
         const post = state.posts.find(p => p.id === postId)
         if (post) {
           post.likes.push(like)
-          post._count.likes += 1
+          post._count.likes = likesCount
+          post.isLiked = true
         }
       })
+      // unlikePost
       .addCase(unlikePost.fulfilled, (state, action) => {
-        const { postId } = action.payload
+        const { postId, likesCount } = action.payload
         const post = state.posts.find(p => p.id === postId)
         if (post) {
-          post.likes = post.likes.filter(like => like.userId !== localStorage.getItem('userId'))
-          post._count.likes = Math.max(0, post._count.likes - 1)
+          const userId = localStorage.getItem('userId')
+          post.likes = post.likes.filter(like => like.userId !== userId)
+          post._count.likes = likesCount
+          post.isLiked = false
         }
       })
   },

@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @next/next/no-img-element */
-/* eslint-disable jsx-a11y/alt-text */
 'use client'
 
 import { useState, useRef } from 'react'
@@ -8,12 +8,13 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { createPost } from '@/store/slices/postsSlice'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Image, X } from 'lucide-react'
+import { Image as ImageIcon, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+
 
 export function CreatePost() {
   const dispatch = useAppDispatch()
-  const router = useRouter()
   const { user } = useAppSelector((state) => state.auth)
   const { isLoading } = useAppSelector((state) => state.posts)
   
@@ -62,7 +63,8 @@ export function CreatePost() {
       removeImage()
       setIsExpanded(false)
       
-      router.push('/')
+      // Refresh page to update posts
+      window.location.reload()
     } catch (error) {
       console.error('Error creating post:', error)
       alert('Error creating post')
@@ -86,7 +88,7 @@ export function CreatePost() {
     )}>
       <form onSubmit={handleSubmit}>
         <div className="flex space-x-4">
-          <Avatar src={user?.avatar} alt={user?.name} className="flex-shrink-0" />
+          <Avatar src={user?.avatar} alt={user?.name} className="shrink-0" />
           
           <div className="flex-1 space-y-4">
             <textarea
@@ -119,9 +121,8 @@ export function CreatePost() {
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-
-<div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+              <div className="flex items-center space-x-2">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -136,7 +137,7 @@ export function CreatePost() {
                   onClick={() => fileInputRef.current?.click()}
                   className="text-gray-500 hover:text-primary-600"
                 >
-                  <Image className="w-5 h-5" />
+                  <ImageIcon className="w-5 h-5" />
                 </Button>
               </div>
 
@@ -157,7 +158,7 @@ export function CreatePost() {
                     disabled={isLoading || (!caption.trim() && !image)}
                     loading={isLoading}
                   >
-                    Post
+                    {isLoading ? 'Posting...' : 'Post'}
                   </Button>
                 </div>
               )}
