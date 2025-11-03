@@ -24,12 +24,13 @@ export class AuthService {
   }
 
   static generateToken(payload: JwtPayload): string {
-    return jwt.sign(payload, JWT_SECRET!, { expiresIn: '7d' }) // ← إضافة ! هنا
+    return jwt.sign(payload, JWT_SECRET!, { expiresIn: '7d' })  
   }
 
   static verifyToken(token: string): JwtPayload {
     try {
-      return jwt.verify(token, JWT_SECRET!) as JwtPayload // ← وإضافة ! هنا
+      const cleanToken = token.replace('Bearer ', '')
+      return jwt.verify(cleanToken, JWT_SECRET!) as JwtPayload 
     } catch (error) {
       if (error instanceof jwt.JsonWebTokenError) {
         throw new Error('Invalid token')

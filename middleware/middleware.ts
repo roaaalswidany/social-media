@@ -4,8 +4,11 @@ import type { NextRequest } from 'next/server'
 import { AuthService } from '../lib/auth'
 
 export function middleware(request: NextRequest) {
+  const tokenFromCookie = request.cookies.get('token')?.value
   const authHeader = request.headers.get('authorization')
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
+  const tokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
+  
+  const token = tokenFromCookie || tokenFromHeader
 
   const protectedRoutes = [
     '/api/posts',
@@ -13,11 +16,22 @@ export function middleware(request: NextRequest) {
     '/api/auth/me'
   ]
 
+  const publicRoutes = [
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/posts?', 
+  ]
+
   const isProtectedRoute = protectedRoutes.some(route => 
     request.nextUrl.pathname.startsWith(route)
   )
 
-  if (isProtectedRoute) {
+  const isPublicRoute = publicRoutes.some(route =>
+    request.nextUrl.pathname.includes(route) ||
+    (request.nextUrl.pathname === '/api/posts' && request.method === 'GET')
+  )
+
+  if (isProtectedRoute && !isPublicRoute) {
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized - Token required' }, { status: 401 })
     }
@@ -25,7 +39,9 @@ export function middleware(request: NextRequest) {
     try {
       AuthService.verifyToken(token)
     } catch (error) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      const response = NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      response.cookies.delete('token')
+      return response
     }
   }
 
@@ -33,5 +49,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/:path*']
+  matcher: [
+    '/api/:path*',
+    '/((?!api/auth/login|api/auth/register).*)'
+  ]
 }

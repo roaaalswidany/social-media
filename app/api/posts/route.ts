@@ -42,19 +42,22 @@ export async function GET(request: NextRequest) {
     const totalPosts = await prisma.post.count()
     const hasMore = skip + posts.length < totalPosts
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const formattedPosts = posts.map((post: { likes: any[] }) => ({
+    const authHeader = request.headers.get('authorization')
+    let currentUserId: string | null = null
+    
+    if (authHeader) {
+      try {
+        const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader
+        const payload = AuthService.verifyToken(token)
+        currentUserId = payload.userId
+      } catch {
+        currentUserId = null
+      }
+    }
+
+    const formattedPosts = posts.map((post) => ({
       ...post,
-      isLiked: post.likes.some(like => {
-        const token = request.headers.get('authorization')?.replace('Bearer ', '')
-        if (!token) return false
-        try {
-          const payload = AuthService.verifyToken(token)
-          return like.userId === payload.userId
-        } catch {
-          return false
-        }
-      }),
+      isLiked: currentUserId ? post.likes.some(like => like.userId === currentUserId) : false,
       likes: undefined
     }))
 
@@ -79,14 +82,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    if (!token) {
+    const authHeader = request.headers.get('authorization')
+    
+    if (!authHeader) {
       return NextResponse.json(
         { error: 'Unauthorized - Token required' },
         { status: 401 }
       )
     }
 
+    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader
+    
     const payload = AuthService.verifyToken(token)
     
     const formData = await request.formData()

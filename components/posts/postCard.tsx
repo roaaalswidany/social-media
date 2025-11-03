@@ -45,7 +45,11 @@ export function PostCard({ post }: PostCardProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <Link href={`/profile/${post.author.id}`}>
-            <Avatar src={post.author.avatar} alt={post.author.name} />
+            <Avatar 
+              src={post.author.avatar} 
+              alt={post.author.name}
+              size="md"
+            />
           </Link>
           <div>
             <Link 
@@ -104,7 +108,7 @@ export function PostCard({ post }: PostCardProps) {
           >
             <Link href={`/posts/${post.id}`} className="flex items-center space-x-2">
               <MessageCircle className="w-5 h-5" />
-              <span>Comment</span>
+              <span>{post._count?.comments || 0}</span>
             </Link>
           </Button>
         </div>

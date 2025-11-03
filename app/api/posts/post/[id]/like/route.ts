@@ -12,7 +12,11 @@ export async function POST(request: NextRequest, context: Context) {
   try {
     const { postId } = context.params
     
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    const tokenFromCookie = request.cookies.get('token')?.value
+    const authHeader = request.headers.get('authorization')
+    const tokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
+    const token = tokenFromCookie || tokenFromHeader
+    
     if (!token) {
       return NextResponse.json(
         { error: 'Unauthorized - Token required' },
