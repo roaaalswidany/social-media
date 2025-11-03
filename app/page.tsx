@@ -91,10 +91,10 @@ export default function HomePage() {
             </p>
             {!isAuthenticated && (
               <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                <Button asChild>
+                <Button>
                   <Link href="/register">Create Account</Link>
                 </Button>
-                <Button variant="outline" asChild>
+                <Button variant="outline">
                   <Link href="/login">Sign In</Link>
                 </Button>
               </div>
