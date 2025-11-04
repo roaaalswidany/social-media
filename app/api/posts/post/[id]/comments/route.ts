@@ -1,16 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  context: { params: Promise<{ postId: string }> }
 ) {
-
+  const { postId } = await context.params
+  return NextResponse.json({ message: 'POST comment' })
 }
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const postId = params.id
+  const { id: postId } = await context.params
+  return NextResponse.json({ message: 'GET comments', postId })
 }
