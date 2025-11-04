@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ postId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { postId } = await context.params
-  return NextResponse.json({ message: 'POST comment' })
+  const { id: postId } = await context.params
+  return NextResponse.json({ message: 'POST comment', postId })
 }
 
 export async function GET(
