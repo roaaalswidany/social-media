@@ -24,9 +24,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (isAuthenticated && activeTab === 'feed') {
-      dispatch(fetchFeed(1))
+      dispatch(fetchFeed({page: 1}))
     } else {
-      dispatch(fetchPosts(1))
+      dispatch(fetchPosts({page: 1}))
     }
   }, [dispatch, isAuthenticated, activeTab])
 

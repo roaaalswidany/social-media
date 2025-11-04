@@ -55,7 +55,8 @@ const initialState: PostsState = {
 // Fetch posts
 export const fetchPosts = createAsyncThunk(
   'posts/fetchPosts',
-  async ({ page = 1, limit = 10 }: { page?: number; limit?: number }, { rejectWithValue }) => {
+   async (params: { page?: number; limit?: number } = {}, { rejectWithValue }) => {
+    const { page = 1, limit = 10 } = params
     try {
       const response = await fetch(`/api/posts?page=${page}&limit=${limit}`, {
         credentials: 'include',
@@ -107,8 +108,15 @@ export const fetchFeed = createAsyncThunk(
 // Create post
 export const createPost = createAsyncThunk(
   'posts/createPost',
-  async (formData: FormData, { rejectWithValue }) => {
+  async (postData: { caption: string; image?: File | null }, { rejectWithValue }) => {
     try {
+      const formData = new FormData()
+      formData.append('caption', postData.caption)
+      
+      if (postData.image) {
+        formData.append('image', postData.image)
+      }
+
       const response = await fetch('/api/posts', {
         method: 'POST',
         credentials: 'include',
@@ -127,6 +135,7 @@ export const createPost = createAsyncThunk(
     }
   }
 )
+
 
 // Like post
 export const likePost = createAsyncThunk(

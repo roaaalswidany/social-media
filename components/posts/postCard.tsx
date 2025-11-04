@@ -23,22 +23,25 @@ export function PostCard({ post }: PostCardProps) {
   const isLiked = post.likes?.some((like) => like.userId === user?.id) || false
   const likeCount = post._count?.likes || 0
 
-  const handleLike = async () => {
-    if (!user) return
+ const handleLike = async () => {
+  if (!user) return
 
-    setIsLiking(true)
-    try {
-      if (isLiked) {
-        await dispatch(unlikePost(post.id)).unwrap()
-      } else {
-        await dispatch(likePost(post.id)).unwrap()
-      }
-    } catch (error) {
-      console.error('Error liking post:', error)
-    } finally {
-      setIsLiking(false)
+  setIsLiking(true)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const url = `/api/posts/like?postId=${post.id}`
+    
+    if (isLiked) {
+      await dispatch(unlikePost(post.id)).unwrap()
+    } else {
+      await dispatch(likePost(post.id)).unwrap()
     }
+  } catch (error) {
+    console.error('Error liking post:', error)
+  } finally {
+    setIsLiking(false)
   }
+}
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fade-in">

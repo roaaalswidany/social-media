@@ -16,11 +16,31 @@ export class AuthService {
     if (!password || password.length < 6) {
       throw new Error('Password must be at least 6 characters')
     }
-    return bcrypt.hash(password, 12)
+    console.log('Hashing password...')
+    const saltRounds = 12
+    const hashed = await bcrypt.hash(password, saltRounds)
+    console.log('Password hashed. Length:', hashed.length)
+    return hashed
   }
 
   static async comparePassword(password: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(password, hashedPassword)
+    console.log('Comparing passwords...')
+    console.log('Input password:', password)
+    console.log('Stored hash:', hashedPassword?.substring(0, 20) + '...')
+    
+    if (!hashedPassword) {
+      console.log('No hashed password provided')
+      return false
+    }
+    
+    try {
+      const isValid = await bcrypt.compare(password, hashedPassword)
+      console.log('Password comparison result:', isValid)
+      return isValid
+    } catch (error) {
+      console.error('Error comparing passwords:', error)
+      return false
+    }
   }
 
   static generateToken(payload: JwtPayload): string {

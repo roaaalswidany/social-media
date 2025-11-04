@@ -27,6 +27,18 @@ A modern social media platform built with Next.js 14, TypeScript, Prisma, and My
 - MySQL database
 - npm or yarn
 
+## API Documentation
+
+### Postman Collection
+[![Run in Postman](https://documenter.getpostman.com/view/49016883/2sB3WqtKTr)]
+
+### Local Development
+1. Clone the repository
+2. Install dependencies: npm install
+3. Set up environment variables (see .env.example)
+4. Run migrations: npx prisma db push
+5. Start development server: npm run dev
+
 ##  Installation
 
 1. Clone the repository

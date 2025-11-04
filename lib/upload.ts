@@ -7,6 +7,11 @@ export class UploadService {
   private static maxFileSize = 5 * 1024 * 1024 // 5MB
 
   static async uploadImage(file: File, userId: string): Promise<string> {
+    console.log('Starting image upload...')
+    console.log('File type:', file.type)
+    console.log('File size:', file.size)
+    console.log('File name:', file.name)
+
     if (!this.allowedMimeTypes.includes(file.type)) {
       throw new Error('File type not supported. Please use JPEG, PNG, GIF, or WebP')
     }
@@ -19,16 +24,32 @@ export class UploadService {
       fs.mkdirSync(this.uploadDir, { recursive: true })
     }
 
-    const fileExtension = path.extname(file.name)
+    const mimeToExt: { [key: string]: string } = {
+      'image/jpeg': '.jpg',
+      'image/png': '.png', 
+      'image/gif': '.gif',
+      'image/webp': '.webp'
+    }
+    
+    const fileExtension = mimeToExt[file.type] || '.jpg'
     const fileName = `${userId}-${Date.now()}${fileExtension}`
     const filePath = path.join(this.uploadDir, fileName)
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    console.log('Generated filename:', fileName)
+    console.log('File path:', filePath)
 
-    await fs.promises.writeFile(filePath, buffer)
+    try {
+      const bytes = await file.arrayBuffer()
+      const buffer = Buffer.from(bytes)
 
-    return `/uploads/${fileName}`
+      await fs.promises.writeFile(filePath, buffer)
+      console.log('Image saved successfully')
+
+      return `/uploads/${fileName}`
+    } catch (error) {
+      console.error('Error saving image:', error)
+      throw new Error('Failed to save image')
+    }
   }
 
   static async deleteImage(imagePath: string): Promise<void> {
