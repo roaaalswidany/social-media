@@ -10,6 +10,7 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: { id: string } }
 ) {
+  const postId = params.id
 }
