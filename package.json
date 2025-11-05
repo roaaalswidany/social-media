@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev && prisma generate",
-    "vercel-build": "npx prisma generate && next build",
-    "build": "next build",
+    "vercel-build": "npx prisma generate && npx prisma db push && next build",
+    "build": "next build && prisma generate",
     "start": "next start",
     "postinstall": "prisma generate",
     "lint": "eslint"
