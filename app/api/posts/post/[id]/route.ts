@@ -9,9 +9,9 @@ interface Context {
   }
 }
 
-export async function GET(request: NextRequest, context: Context) {
+export async function GET(request: NextRequest, context: {params: Promise<{id: string}>}) {
   try {
-    const { postId } = context.params
+    const {id : postId } = await context.params
 
     const post = await prisma.post.findUnique({
       where: { id: postId },
