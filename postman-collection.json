@@ -59,7 +59,7 @@
         {
           "name": "Logout User",
           "request": {
-            "method": "POST",
+            "method": "DELETE",
             "header": [
               {
                 "key": "Authorization",

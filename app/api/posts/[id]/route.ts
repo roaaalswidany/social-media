@@ -5,9 +5,13 @@ import { verifyTokenFromRequest } from '@/lib/verifyToken'
 import { UploadService } from '@/lib/upload'
 
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params
+    const { id } = await params
+
     const post = await prisma.post.findUnique({
       where: { id },
       include: {
@@ -17,7 +21,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       }
     })
 
-    if (!post) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+    if (!post) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+    }
 
     return NextResponse.json({ message: 'Post retrieved', post })
   } catch (error) {
@@ -29,10 +35,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string | Promise<string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = await params.id
+    const { id } = await params
 
     const payload = await verifyTokenFromRequest(request)
     const { caption } = await request.json()
@@ -72,10 +78,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string | Promise<string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = await params.id
+    const { id } = await params
+
     const payload = await verifyTokenFromRequest(request)
 
     const existingPost = await prisma.post.findUnique({ where: { id } })
