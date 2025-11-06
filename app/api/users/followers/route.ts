@@ -3,6 +3,6 @@ import { prisma } from '@/lib/prisma'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(request: NextRequest, { params }: any) {
-  const following = await prisma.follow.findMany({ where: { followerId: params.userId }, include: { following: { select: { id: true, name: true, username: true, avatar: true } } } })
-  return NextResponse.json({ following })
+  const followers = await prisma.follow.findMany({ where: { followingId: params.userId }, include: { follower: { select: { id: true, name: true, username: true, avatar: true } } } })
+  return NextResponse.json({ followers })
 }

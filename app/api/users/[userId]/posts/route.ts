@@ -1,112 +1,37 @@
-/* eslint-disable prefer-const */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { AuthService } from '@/lib/auth'
+import { verifyTokenFromRequest } from '@/lib/verifyToken'
 
-interface Context {
-  params: {
-    userId: string
-  }
-}
-
-export async function GET(request: NextRequest, context: Context) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: NextRequest, { params }: any) {
   try {
-    const { userId } = context.params
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, name: true, username: true }
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
-    }
-
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
+    const userId = params.userId
+    const page = parseInt(new URL(request.url).searchParams.get('page') || '1')
+    const limit = parseInt(new URL(request.url).searchParams.get('limit') || '10')
     const skip = (page - 1) * limit
 
     const posts = await prisma.post.findMany({
       where: { authorId: userId },
       skip,
       take: limit,
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            avatar: true
-          }
-        },
-        likes: {
-          select: {
-            userId: true
-          }
-        },
-        _count: {
-          select: {
-            likes: true,
-            comments: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      include: { author: { select: { id: true, name: true, username: true, avatar: true } }, likes: { select: { userId: true } }, _count: { select: { likes: true, comments: true } } },
+      orderBy: { createdAt: 'desc' }
     })
 
-    const totalPosts = await prisma.post.count({
-      where: { authorId: userId }
-    })
+    const total = await prisma.post.count({ where: { authorId: userId } })
 
-    const hasMore = skip + posts.length < totalPosts
+    // optional token to mark isLiked
+    let currentUserId: string | null = null
+    try {
+      const payload = await verifyTokenFromRequest(request)
+      currentUserId = payload.userId
+    } catch { currentUserId = null }
 
-    let isLikedMap: Record<string, boolean> = {}
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    
-    if (token) {
-      try {
-        const payload = AuthService.verifyToken(token)
-        posts.forEach((post: { id: string | number; likes: any[] }) => {
-          isLikedMap[post.id] = post.likes.some((like: { userId: string }) => like.userId === payload.userId)
-        })
-      } catch {
-        // Ignore token error
-      }
-    }
+    const formatted = posts.map(p => ({ ...p, isLiked: currentUserId ? p.likes.some(l => l.userId === currentUserId) : false, likes: undefined }))
 
-    const formattedPosts = posts.map((post: { id: string | number }) => ({
-      ...post,
-      isLiked: isLikedMap[post.id] || false,
-      likes: undefined
-    }))
-
-    return NextResponse.json({ 
-      message: `Posts retrieved successfully for ${user.name}`,
-      posts: formattedPosts,
-      user: {
-        id: user.id,
-        name: user.name,
-        username: user.username
-      },
-      pagination: {
-        page,
-        limit,
-        total: totalPosts,
-        hasMore
-      }
-    })
+    return NextResponse.json({ message: `Posts retrieved for ${userId}`, posts: formatted, pagination: { page, limit, total, hasMore: skip + posts.length < total } })
   } catch (error) {
     console.error('Get user posts error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

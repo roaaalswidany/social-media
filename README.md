@@ -32,6 +32,28 @@ A modern social media platform built with Next.js 14, TypeScript, Prisma, and My
 ### Postman Collection
 [![Run in Postman](https://documenter.getpostman.com/view/49016883/2sB3WqtKTr)]
 
+## API Endpoints (high level)
+- POST /api/auth/register
+- POST /api/auth/login
+- DELETE /api/auth/logout
+- GET /api/auth/me
+- GET /api/posts
+- POST /api/posts (form-data: caption, image)
+- GET /api/posts/:id
+- PUT /api/posts/:id
+- DELETE /api/posts/:id
+- POST /api/posts/:id/like
+- DELETE /api/posts/:id/like
+- GET /api/posts/:id/comments
+- POST /api/posts/:id/comments
+- DELETE /api/comments/:id
+- GET /api/feed
+- POST /api/follow?userId=
+- DELETE /api/follow?userId=
+- GET /api/notifications
+- PUT /api/notifications/:id
+- PATCH /api/users/update
+
 ### Local Development
 1. Clone the repository
 2. Install dependencies: npm install

@@ -6,16 +6,11 @@ export async function POST(request: NextRequest) {
   try {
     const { email, password, name, username } = await request.json()
 
-    console.log('Registration attempt for:', email)
-
     if (!email || !password || !name || !username) {
-      return NextResponse.json(
-        { error: 'All fields are required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'All fields required' }, { status: 400 })
     }
 
-    const existingUser = await prisma.user.findFirst({
+    const existing = await prisma.user.findFirst({
       where: {
         OR: [
           { email: email.toLowerCase() },
@@ -24,64 +19,32 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'User already exists' },
-        { status: 409 }
-      )
+    if (existing) {
+      return NextResponse.json({ error: 'User already exists' }, { status: 409 })
     }
 
-    console.log('Hashing password...')
-    const hashedPassword = await AuthService.hashPassword(password)
-    console.log('Password hashed. Length:', hashedPassword.length)
-    console.log('Hash:', hashedPassword)
+    const hashed = await AuthService.hashPassword(password)
 
     const user = await prisma.user.create({
       data: {
         email: email.toLowerCase(),
-        password: hashedPassword,
+        password: hashed,
         name,
         username: username.toLowerCase(),
         bio: '',
         avatar: null
       }
-      
     })
-
-    console.log('User created in database. ID:', user.id)
-
-    const verifiedUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        username: true,
-        bio: true,
-        avatar: true,
-        createdAt: true,
-        password: true  
-      }
-    })
-
-    console.log('Verified user password in DB:', verifiedUser?.password ? 'EXISTS' : 'MISSING')
 
     const token = AuthService.generateToken({ userId: user.id })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+    const { password: _, ...userSafe } = user as any
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...userWithoutPassword } = verifiedUser!
-
-    return NextResponse.json({
-      message: 'Account created successfully',
-      user: userWithoutPassword,
-      token
-    }, { status: 201 })
-
+    const response = NextResponse.json({ message: 'Registered', user: userSafe, token }, { status: 201 })
+    response.cookies.set('token', token, { httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 7 })
+    return response
   } catch (error) {
-    console.error('Registration error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('Register error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

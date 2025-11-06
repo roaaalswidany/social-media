@@ -1,214 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { AuthService } from '@/lib/auth'
+import { verifyTokenFromRequest } from '@/lib/verifyToken'
 import { UploadService } from '@/lib/upload'
 
-interface Context {
-  params: {
-    postId: string
-  }
-}
+type Params = { params: { id: string } }
 
-export async function GET(request: NextRequest, context: {params: Promise<{id: string}>}) {
+export async function GET(request: NextRequest, { params }: Params) {
   try {
-    const {id : postId } = await context.params
-
     const post = await prisma.post.findUnique({
-      where: { id: postId },
+      where: { id: params.id },
       include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            avatar: true,
-            bio: true
-          }
-        },
-        likes: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                username: true
-              }
-            }
-          }
-        },
-        _count: {
-          select: {
-            likes: true,
-            comments: true
-          }
-        }
+        author: { select: { id: true, name: true, username: true, avatar: true } },
+        likes: { select: { userId: true } },
+        _count: { select: { likes: true, comments: true } }
       }
     })
-
-    if (!post) {
-      return NextResponse.json(
-        { error: 'Post not found' },
-        { status: 404 }
-      )
-    }
-
-    let isLiked = false
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    if (token) {
-      try {
-        const payload = AuthService.verifyToken(token)
-        isLiked = post.likes.some((like: { userId: string }) => like.userId === payload.userId)
-      } catch {
-        // Ignore token error
-      }
-    }
-
-    return NextResponse.json({ 
-      message: 'Post retrieved successfully',
-      post: {
-        ...post,
-        isLiked
-      }
-    })
+    if (!post) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+    return NextResponse.json({ post })
   } catch (error) {
     console.error('Get post error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-export async function PUT(request: NextRequest, context: Context) {
+export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    const { postId } = context.params
-    
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Token required' },
-        { status: 401 }
-      )
-    }
+    const payload = await verifyTokenFromRequest(request)
+    const existing = await prisma.post.findUnique({ where: { id: params.id } })
+    if (!existing) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+    if (existing.authorId !== payload.userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const payload = AuthService.verifyToken(token)
-
-    const existingPost = await prisma.post.findUnique({
-      where: { id: postId }
-    })
-
-    if (!existingPost) {
-      return NextResponse.json(
-        { error: 'Post not found' },
-        { status: 404 }
-      )
-    }
-
-    if (existingPost.authorId !== payload.userId) {
-      return NextResponse.json(
-        { error: 'Not authorized to edit this post' },
-        { status: 403 }
-      )
-    }
-
-    const { caption } = await request.json()
-
-    if (!caption || caption.trim() === '') {
-      return NextResponse.json(
-        { error: 'Caption is required' },
-        { status: 400 }
-      )
-    }
+    const body = await request.json()
+    const caption = (body.caption || '').trim()
+    if (!caption) return NextResponse.json({ error: 'Caption required' }, { status: 400 })
 
     const post = await prisma.post.update({
-      where: { id: postId },
-      data: { 
-        caption: caption.trim(),
-        updatedAt: new Date()
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            avatar: true
-          }
-        },
-        _count: {
-          select: {
-            likes: true,
-            comments: true
-          }
-        }
-      }
+      where: { id: params.id },
+      data: { caption, updatedAt: new Date() },
+      include: { author: { select: { id: true, name: true, username: true, avatar: true } }, _count: { select: { likes: true, comments: true } } }
     })
 
-    return NextResponse.json({ 
-      message: 'Post updated successfully',
-      post 
-    })
+    return NextResponse.json({ message: 'Post updated', post })
   } catch (error) {
     console.error('Update post error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-export async function DELETE(request: NextRequest, context: Context) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   try {
-    const { postId } = context.params
-    
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Token required' },
-        { status: 401 }
-      )
+    const payload = await verifyTokenFromRequest(request)
+    const existing = await prisma.post.findUnique({ where: { id: params.id } })
+    if (!existing) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+    if (existing.authorId !== payload.userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    if (existing.image) {
+      await UploadService.deleteImage(existing.image)
     }
 
-    const payload = AuthService.verifyToken(token)
+    await prisma.like.deleteMany({ where: { postId: params.id } })
+    await prisma.comment.deleteMany({ where: { postId: params.id } })
+    await prisma.post.delete({ where: { id: params.id } })
 
-    const existingPost = await prisma.post.findUnique({
-      where: { id: postId }
-    })
-
-    if (!existingPost) {
-      return NextResponse.json(
-        { error: 'Post not found' },
-        { status: 404 }
-      )
-    }
-
-if (existingPost.authorId !== payload.userId) {
-      return NextResponse.json(
-        { error: 'Not authorized to delete this post' },
-        { status: 403 }
-      )
-    }
-
-    if (existingPost.image) {
-      await UploadService.deleteImage(existingPost.image)
-    }
-
-    await prisma.like.deleteMany({
-      where: { postId }
-    })
-
-    await prisma.post.delete({
-      where: { id: postId }
-    })
-
-    return NextResponse.json({ 
-      message: 'Post deleted successfully' 
-    })
+    return NextResponse.json({ message: 'Post deleted' })
   } catch (error) {
     console.error('Delete post error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

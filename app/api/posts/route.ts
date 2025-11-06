@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { AuthService } from '@/lib/auth'
+import { verifyTokenFromRequest } from '@/lib/verifyToken'
 import { UploadService } from '@/lib/upload'
 
 export async function GET(request: NextRequest) {
@@ -14,137 +15,63 @@ export async function GET(request: NextRequest) {
       skip,
       take: limit,
       include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            avatar: true
-          }
-        },
-        likes: {
-          select: {
-            userId: true
-          }
-        },
-        _count: {
-          select: {
-            likes: true,
-            comments: true
-          }
-        }
+        author: { select: { id: true, name: true, username: true, avatar: true } },
+        likes: { select: { userId: true } },
+        _count: { select: { likes: true, comments: true } }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' }
     })
 
-    const totalPosts = await prisma.post.count()
-    const hasMore = skip + posts.length < totalPosts
-
+    const total = await prisma.post.count()
     const authHeader = request.headers.get('authorization')
     let currentUserId: string | null = null
-    
     if (authHeader) {
       try {
         const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader
-        const payload = AuthService.verifyToken(token)
+        const payload = (await import('@/lib/auth')).AuthService.verifyTokenRaw(token)
         currentUserId = payload.userId
       } catch {
         currentUserId = null
       }
     }
 
-    const formattedPosts = posts.map((post) => ({
-      ...post,
-      isLiked: currentUserId ? post.likes.some(like => like.userId === currentUserId) : false,
+    const formatted = posts.map(p => ({
+      ...p,
+      isLiked: currentUserId ? p.likes.some(l => l.userId === currentUserId) : false,
       likes: undefined
     }))
 
-    return NextResponse.json({ 
-      message: 'Posts retrieved successfully',
-      posts: formattedPosts,
-      pagination: {
-        page,
-        limit,
-        total: totalPosts,
-        hasMore
-      }
-    })
+    return NextResponse.json({ message: 'Posts', posts: formatted, pagination: { page, limit, total, hasMore: skip + posts.length < total } })
   } catch (error) {
     console.error('Get posts error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Token required' },
-        { status: 401 }
-      )
-    }
-
-    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader
-    
-    const payload = AuthService.verifyToken(token)
-    
+    const payload = await verifyTokenFromRequest(request)
     const formData = await request.formData()
     const caption = formData.get('caption') as string
     const image = formData.get('image') as File | null
 
     if (!caption || caption.trim() === '') {
-      return NextResponse.json(
-        { error: 'Caption is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Caption is required' }, { status: 400 })
     }
 
     let imageUrl: string | null = null
-
     if (image && image.size > 0) {
       imageUrl = await UploadService.uploadImage(image, payload.userId)
     }
 
     const post = await prisma.post.create({
-      data: {
-        caption: caption.trim(),
-        image: imageUrl,
-        authorId: payload.userId
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            avatar: true
-          }
-        },
-        _count: {
-          select: {
-            likes: true,
-            comments: true
-          }
-        }
-      }
+      data: { caption: caption.trim(), image: imageUrl, authorId: payload.userId },
+      include: { author: { select: { id: true, name: true, username: true, avatar: true } }, _count: { select: { likes: true, comments: true } } }
     })
 
-    return NextResponse.json({ 
-      message: 'Post created successfully',
-      post 
-    }, { status: 201 })
+    return NextResponse.json({ message: 'Post created', post }, { status: 201 })
   } catch (error) {
     console.error('Create post error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: (error as any).message || 'Internal server error' }, { status: 500 })
   }
 }

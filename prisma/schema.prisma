@@ -15,6 +15,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -27,11 +28,10 @@ model User {
   updatedAt DateTime @updatedAt
 
   posts     Post[]
-  comments  Comment[]  
+  comments  Comment[]
   likes     Like[]
   followers Follow[] @relation("Follower")
   following Follow[] @relation("Following")
-  
   sentNotifications     Notification[] @relation("SentNotifications")
   receivedNotifications Notification[] @relation("ReceivedNotifications")
 
@@ -48,8 +48,8 @@ model Post {
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   likes     Like[]
-  comments  Comment[]    
-  notifications Notification[]  
+  comments  Comment[]
+  notifications Notification[]
 
   @@map("posts")
 }
@@ -83,32 +83,30 @@ model Comment {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
   authorId  String
   postId    String
-  
   author    User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
   post      Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
-  notifications Notification[]  
-  
+  notifications Notification[]
+
   @@map("comments")
 }
 
 model Notification {
   id        String   @id @default(cuid())
-  type      String   // 'like', 'comment', 'follow'
+  type      String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
-  
+
   senderId   String
   receiverId String
   postId     String?
   commentId  String?
-  
+
   sender     User     @relation("SentNotifications", fields: [senderId], references: [id])
   receiver   User     @relation("ReceivedNotifications", fields: [receiverId], references: [id])
   post       Post?    @relation(fields: [postId], references: [id])
   comment    Comment? @relation(fields: [commentId], references: [id])
-  
+
   @@map("notifications")
 }
