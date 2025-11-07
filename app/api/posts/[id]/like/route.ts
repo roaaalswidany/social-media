@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyTokenFromRequest } from '@/lib/verifyToken'
 
-type Params = { params: { id: string } } // id is postId
+type Params = { params: Promise<{ id: string }> } 
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
+    const { id: postId } = await params 
     const payload = await verifyTokenFromRequest(request)
-    const postId = params.id
 
     const post = await prisma.post.findUnique({ where: { id: postId } })
     if (!post) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
 
-    const existing = await prisma.like.findUnique({ where: { userId_postId: { userId: payload.userId, postId } } })
+    const existing = await prisma.like.findUnique({
+      where: { userId_postId: { userId: payload.userId, postId } }
+    })
     if (existing) return NextResponse.json({ error: 'Already liked' }, { status: 400 })
 
     const like = await prisma.like.create({ data: { userId: payload.userId, postId } })
@@ -33,10 +35,12 @@ export async function POST(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
+    const { id: postId } = await params   
     const payload = await verifyTokenFromRequest(request)
-    const postId = params.id
 
-    const existing = await prisma.like.findUnique({ where: { userId_postId: { userId: payload.userId, postId } } })
+    const existing = await prisma.like.findUnique({
+      where: { userId_postId: { userId: payload.userId, postId } }
+    })
     if (!existing) return NextResponse.json({ error: 'Not liked' }, { status: 400 })
 
     await prisma.like.delete({ where: { userId_postId: { userId: payload.userId, postId } } })
